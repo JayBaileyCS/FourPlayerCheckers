@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Four-Player Checkers</title>
+	<style>
+	  #container {
+		display: flex;
+		flex-wrap: wrap;
+		width: 28rem;
+	  }
+
+	  #container > div {
+		width: 2rem;
+		height: 2rem;
+	  }
+	  
+	  .circle {
+		  position: absolute;
+		  top: 50%;
+		  left: 50%;
+		  transform: translate(-50%, -50%);
+		  border-radius: 50%;
+		  width: 80%;
+		  height: 80%;
+		}
+	</style>
+  </head>
+  <body>
+    <div id="container"></div>
+
+    <script>
+      // Wait for the HTML document to finish loading
+      window.addEventListener('DOMContentLoaded', (event) => {
+
+		let host = 'http://127.0.0.1:5000'
+		let firstCell = null;
+		let secondCell;
+
+		fetch(host + '/newGame')
+		.then(response => response.json())
+		.then(data => {getBoard(data)})
+		.catch(error => {
+		  console.error('Error:', error);
+		});
+		
+
+		const getBoard = function(id) {
+			fetch(host + '/getBoard/' + id)
+				.then(response => response.json())
+				.then(data => {displayBoard(data, id)})
+				.catch(error => {
+				  console.error('Error:', error);
+				});
+			}
+		
+		const displayBoard = function(board, id) {
+
+			const container = document.getElementById('container');
+			document.getElementById('container').innerHTML = "";
+			const pieceColors = {'1': 'red', '2': 'gold', '3': 'black', '4': 'brown'}
+			let pieceColorMap = new Map(Object.entries(pieceColors))
+			const circles = []
+			
+			for (let row = 0; row < 14; row++) {
+			  for (let col = 0; col < 14; col++) {
+			  
+				// Create checkerboard pattern of white and black
+				const isWhite = (row + col) % 2 === 0;
+				const color = isWhite ? 'white' : 'black';
+				const cell = document.createElement('div');
+				cell.id = row + ',' + col
+				cell.style.backgroundColor = color;
+				cell.style.position = 'relative'
+				
+				if (board[row][col] == 'X') {
+					cell.style.backgroundColor = 'gray'
+				}
+				
+				if (pieceColorMap.has(board[row][col])) {
+					const circle = document.createElement('div');
+					circle.classList.add('circle');
+					circle.style.backgroundColor = pieceColorMap.get(board[row][col]);
+					circles.push(circle);
+					cell.appendChild(circle)
+				}
+				
+				cell.addEventListener('click', () => {
+				if (firstCell === null) {
+				// First cell clicked
+					firstCell = cell.id;
+				} else {
+				// Second cell clicked
+					const secondCell = cell.id;
+					makeMoveRequest(host, id, firstCell, secondCell);
+					firstCell = null;
+				}
+			});
+				container.appendChild(cell);
+			  }
+
+			  container.appendChild(document.createElement('br'));
+			}
+			const winnerBox = document.createElement('div');
+			const winner = document.createElement('p');
+			checkWinner(host, id)
+			  .then(data => {
+				winner.textContent = 'Winner: ' + data.toString();
+				winnerBox.appendChild(winner);
+				container.appendChild(winnerBox);
+			  })
+			  .catch(error => {
+				console.error('Error:', error);
+			  });
+		 };
+		
+		const makeMoveRequest = function(host, id, firstCell, secondCell) {
+			const moveString = firstCell + ',' + secondCell
+			fetch(host + '/movePiece/' + id + '/' + moveString)
+			.then(response => response.json())
+				.then(data => {getBoard(id)})
+				.catch(error => {
+				  console.error('Error:', error);
+				});
+		};
+				
+		const checkWinner = function(host, id) {
+		  return fetch(host + '/checkWinner/' + id)
+			.then(response => response.json())
+			.then(data => data)
+			.catch(error => {
+			  console.error('Error:', error);
+			});
+		};
+	});
+		
+    </script>
+  </body>
+</html>
